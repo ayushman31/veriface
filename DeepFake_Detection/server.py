@@ -1,5 +1,6 @@
 from flask import Flask, render_template, redirect, request, url_for, send_file
 from flask import jsonify, json
+from flask_cors import CORS
 from werkzeug.utils import secure_filename
 
 # Interaction with the OS
@@ -47,6 +48,7 @@ video_path = ""
 detectOutput = []
 
 app = Flask("__main__", template_folder="templates")
+CORS(app)  
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 # Creating Model Architecture
@@ -230,6 +232,41 @@ def DetectPage():
         data = json.dumps(data)
         os.remove(video_path);
         return render_template('index.html', data=data)
-        
 
-app.run(port=3000);
+# API endpoint for react frontend
+@app.route('/api/detect', methods=['POST'])
+def api_detect():
+    try:
+        if 'video' not in request.files:
+            return jsonify({'error': 'No video file provided'}), 400
+        
+        video = request.files['video']
+        if video.filename == '':
+            return jsonify({'error': 'No video file selected'}), 400
+        
+        video_filename = secure_filename(video.filename)
+        video.save(os.path.join(app.config['UPLOAD_FOLDER'], video_filename))
+        video_path = "Uploaded_Files/" + video_filename
+        
+        prediction = detectFakeVideo(video_path)
+        
+        if prediction[0] == 0:
+            output = "FAKE"
+        else:
+            output = "REAL"
+        
+        confidence = prediction[1]
+        
+        # clean up uploaded file
+        os.remove(video_path)
+        
+        return jsonify({
+            'output': output,
+            'confidence': confidence,
+            'success': True
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e), 'success': False}), 500
+
+app.run(port=3000, debug=True);
