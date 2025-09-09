@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { validateVideoFile } from '../utils/fileUtils';
 import { UI_MESSAGES } from '../utils/constants';
+import type { UseFileUploadReturn } from '../types';
 
-export const useFileUpload = () => {
+export const useFileUpload = (): UseFileUploadReturn => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleFileChange = (file: File) => {
+  const handleFileChange = (file: File | null) => {
     if (!file) {
       setSelectedFile(null);
       return;
