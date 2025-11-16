@@ -2,6 +2,8 @@
 export interface DetectionResult {
   output: 'REAL' | 'FAKE';
   confidence: number;
+  highlighted_frame: string | null;
+  frame_index: number | null;
   success: boolean;
 }
 

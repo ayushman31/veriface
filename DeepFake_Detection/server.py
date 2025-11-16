@@ -174,64 +174,100 @@ class validation_dataset(Dataset):
       if success:
         yield image
 
+import base64
 
 def detectFakeVideo(videoPath):
+    # transform
     im_size = 112
     mean = [0.485, 0.456, 0.406]
     std = [0.229, 0.224, 0.225]
 
     train_transforms = transforms.Compose([
-                                        transforms.ToPILImage(),
-                                        transforms.Resize((im_size,im_size)),
-                                        transforms.ToTensor(),
-                                        transforms.Normalize(mean,std)])
-    path_to_videos= [videoPath]
+        transforms.ToPILImage(),
+        transforms.Resize((im_size, im_size)),
+        transforms.ToTensor(),
+        transforms.Normalize(mean, std)
+    ])
 
-    video_dataset = validation_dataset(path_to_videos,sequence_length = 20,transform = train_transforms)
-    # use this command for gpu
-    # model = Model(2).cuda()
+    # Dataset
+    video_dataset = validation_dataset([videoPath], sequence_length=20, transform=train_transforms)
+
     model = Model(2)
-    path_to_model = 'model/df_model.pth'
-    model.load_state_dict(torch.load(path_to_model, map_location=torch.device('cpu')))
+    model.load_state_dict(torch.load('model/best_model.pth', map_location='cpu'))
     model.eval()
-    for i in range(0,len(path_to_videos)):
-        print(path_to_videos[i])
-        prediction = predict(model,video_dataset[i],'./')
-        if prediction[0] == 1:
-            print("REAL")
-        else:
-            print("FAKE")
-    return prediction
 
+    # original prediction
+    prediction = predict(model, video_dataset[0])
+    is_fake = prediction[0] == 0  # 0 = fake
 
-@app.route('/', methods=['POST', 'GET'])
-def homepage():
-  if request.method == 'GET':
-    return render_template('index.html')
-  return render_template('index.html')
+    # return early if REAL
+    if not is_fake:
+        return {
+            'prediction': prediction[0],
+            'confidence': prediction[1],
+            'highlighted_frame': None,
+            'frame_index': None
+        }
 
+    # ----------------------------------------
+    # CPU optimization: only process first 30 frames
+    # ----------------------------------------
+    MAX_FRAMES = 30
+    cap = cv2.VideoCapture(videoPath)
 
-@app.route('/Detect', methods=['POST', 'GET'])
-def DetectPage():
-    if request.method == 'GET':
-        return render_template('index.html')
-    if request.method == 'POST':
-        video = request.files['video']
-        print(video.filename)
-        video_filename = secure_filename(video.filename)
-        video.save(os.path.join(app.config['UPLOAD_FOLDER'], video_filename))
-        video_path = "Uploaded_Files/" + video_filename
-        prediction = detectFakeVideo(video_path)
-        print(prediction)
-        if prediction[0] == 0:
-              output = "FAKE"
-        else:
-              output = "REAL"
-        confidence = prediction[1]
-        data = {'output': output, 'confidence': confidence}
-        data = json.dumps(data)
-        os.remove(video_path);
-        return render_template('index.html', data=data)
+    frames = []
+    frame_probs = []
+    frame_count = 0
+
+    while True:
+        ret, frame = cap.read()
+        if not ret or frame_count >= MAX_FRAMES:
+            break
+
+        frame_count += 1
+        frames.append(frame)
+
+        # face crop
+        faces = face_recognition.face_locations(frame)
+        try:
+            top, right, bottom, left = faces[0]
+            face_crop = frame[top:bottom, left:right]
+        except:
+            face_crop = frame
+
+        # preprocess
+        img = train_transforms(face_crop).unsqueeze(0).unsqueeze(0)
+
+        # forward pass
+        fmap, logits = model(img)
+        prob_fake = sm(logits)[0][0].item()
+        frame_probs.append(prob_fake)
+
+    # fakest frame
+    max_idx = int(np.argmax(frame_probs))
+    fakest_frame = frames[max_idx]
+
+    # ----------------------------------------
+    # Draw facial landmarks (instead of heatmap)
+    # ----------------------------------------
+    landmarks = face_recognition.face_landmarks(fakest_frame)
+
+    if len(landmarks) > 0:
+        for key, points in landmarks[0].items():
+            for p in points:
+                cv2.circle(fakest_frame, p, 2, (0, 0, 255), -1)  # small red dots
+
+    # encode the frame
+    _, buffer = cv2.imencode(".jpg", fakest_frame)
+    frame_base64 = base64.b64encode(buffer).decode()
+
+    return {
+        'prediction': prediction[0],
+        'confidence': prediction[1],
+        'highlighted_frame': frame_base64,
+        'frame_index': max_idx
+    }
+
 
 # API endpoint for react frontend
 @app.route('/api/detect', methods=['POST'])
@@ -248,25 +284,23 @@ def api_detect():
         video.save(os.path.join(app.config['UPLOAD_FOLDER'], video_filename))
         video_path = "Uploaded_Files/" + video_filename
         
-        prediction = detectFakeVideo(video_path)
-        
-        if prediction[0] == 0:
-            output = "FAKE"
-        else:
-            output = "REAL"
-        
-        confidence = prediction[1]
-        
-        # clean up uploaded file
+        result = detectFakeVideo(video_path)
+
+        output = "REAL" if result['prediction'] == 1 else "FAKE"
+        confidence = result['confidence']
+
         os.remove(video_path)
-        
+
         return jsonify({
             'output': output,
             'confidence': confidence,
+            'highlighted_frame': result['highlighted_frame'],       # NEW
+            'frame_index': result['frame_index'],  # NEW
             'success': True
         })
         
     except Exception as e:
         return jsonify({'error': str(e), 'success': False}), 500
+
 
 app.run(port=3000, debug=True);

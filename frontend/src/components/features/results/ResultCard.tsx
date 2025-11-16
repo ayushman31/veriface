@@ -33,6 +33,14 @@ const ResultCard: React.FC<ResultCardProps> = ({ result }) => {
         </div>
         
         <ResultDescription isReal={isReal} confidence={result.confidence} />
+        {/* NEW SECTION */}
+        {!isReal && result.highlighted_frame && (
+          <HighlightedFrameDisplay 
+          frame={result.highlighted_frame} 
+          frameIndex={result.frame_index} 
+          />
+        )}
+
       </CardContent>
     </Card>
   );
@@ -94,5 +102,27 @@ const ResultDescription: React.FC<{ isReal: boolean; confidence: number }> = ({
     </CardContent>
   </Card>
 );
+const HighlightedFrameDisplay: React.FC<{ frame: string; frameIndex: number | null }> = ({
+  frame,
+  frameIndex
+}) => (
+  <Card className="overflow-hidden">
+    <CardHeader>
+      <CardTitle className="text-lg md:text-xl">Most Suspicious Frame</CardTitle>
+      <p className="text-sm text-muted-foreground">
+        Frame #{frameIndex} was identified as having the highest signs of manipulation.
+      </p>
+    </CardHeader>
+
+    <CardContent className="flex justify-center">
+      <img
+        src={`data:image/jpeg;base64,${frame}`}
+        alt="Suspicious frame"
+        className="rounded-xl shadow-md border w-full md:w-2/3"
+      />
+    </CardContent>
+  </Card>
+);
+
 
 export default ResultCard;
