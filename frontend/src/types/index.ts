@@ -1,9 +1,13 @@
 // API response types
+export interface HighlightedFrame {
+  frame_index: number;
+  image: string;
+}
+
 export interface DetectionResult {
   output: 'REAL' | 'FAKE';
   confidence: number;
-  highlighted_frame: string | null;
-  frame_index: number | null;
+  highlighted_frames: HighlightedFrame[];  // <-- array!
   success: boolean;
 }
 

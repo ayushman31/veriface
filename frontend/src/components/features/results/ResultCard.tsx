@@ -3,7 +3,7 @@ import { CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../ui/card';
 import { Progress } from '../../ui/progress';
 import { DETECTION_STATUS } from '../../../utils/constants';
-import type { ResultCardProps } from '../../../types';
+import type { ResultCardProps,HighlightedFrame } from '../../../types';
 
 const ResultCard: React.FC<ResultCardProps> = ({ result }) => {
   const isReal = result.output === DETECTION_STATUS.REAL;
@@ -34,12 +34,9 @@ const ResultCard: React.FC<ResultCardProps> = ({ result }) => {
         
         <ResultDescription isReal={isReal} confidence={result.confidence} />
         {/* NEW SECTION */}
-        {!isReal && result.highlighted_frame && (
-          <HighlightedFrameDisplay 
-          frame={result.highlighted_frame} 
-          frameIndex={result.frame_index} 
-          />
-        )}
+        {!isReal && result.highlighted_frames?.length > 0 && (
+  <HighlightedFramesGallery frames={result.highlighted_frames} />
+)}
 
       </CardContent>
     </Card>
@@ -102,27 +99,40 @@ const ResultDescription: React.FC<{ isReal: boolean; confidence: number }> = ({
     </CardContent>
   </Card>
 );
-const HighlightedFrameDisplay: React.FC<{ frame: string; frameIndex: number | null }> = ({
-  frame,
-  frameIndex
-}) => (
+const HighlightedFramesGallery: React.FC<{ frames: HighlightedFrame[] }> = ({ frames }) => (
   <Card className="overflow-hidden">
     <CardHeader>
-      <CardTitle className="text-lg md:text-xl">Most Suspicious Frame</CardTitle>
+      <CardTitle className="text-lg md:text-xl">Most Suspicious Frames</CardTitle>
       <p className="text-sm text-muted-foreground">
-        Frame #{frameIndex} was identified as having the highest signs of manipulation.
+        These frames showed the strongest signs of manipulation.
       </p>
     </CardHeader>
 
-    <CardContent className="flex justify-center">
-      <img
-        src={`data:image/jpeg;base64,${frame}`}
-        alt="Suspicious frame"
-        className="rounded-xl shadow-md border w-full md:w-2/3"
-      />
+    <CardContent>
+      <div className="w-full overflow-x-auto">
+        <div className="flex gap-4 p-2">
+          {frames.map((f, idx) => (
+            <div
+              key={idx}
+              className="min-w-[460px] bg-muted rounded-xl shadow-sm p-2 border"
+            >
+              <img
+                src={`data:image/jpeg;base64,${f.image}`}
+                alt={`Frame ${f.frame_index}`}
+                className="rounded-lg w-full h-auto"
+              />
+
+              <p className="text-xs text-muted-foreground mt-2 text-center">
+                Frame #{f.frame_index}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
     </CardContent>
   </Card>
 );
+
 
 
 export default ResultCard;

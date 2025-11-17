@@ -192,7 +192,7 @@ def detectFakeVideo(videoPath):
     # Dataset
     video_dataset = validation_dataset([videoPath], sequence_length=20, transform=train_transforms)
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    model = Model(2)
+    model = Model(2).to(device)
     model.load_state_dict(torch.load('model/best_model.pth', map_location=device))
     model.eval()
 
@@ -205,29 +205,31 @@ def detectFakeVideo(videoPath):
         return {
             'prediction': prediction[0],
             'confidence': prediction[1],
-            'highlighted_frame': None,
-            'frame_index': None
+            'highlighted_frames': None,
         }
 
-    # ----------------------------------------
-    # CPU optimization: only process first 30 frames
-    # ----------------------------------------
-    MAX_FRAMES = 30
+    # ------------------------------------------------------
+    # SAMPLE 24 FRAMES EVENLY ACROSS VIDEO (FAST)
+    # ------------------------------------------------------
+    TOTAL_FRAMES_TO_ANALYZE = 30
     cap = cv2.VideoCapture(videoPath)
+    video_total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+
+    # Evenly spaced frame indices
+    sample_positions = np.linspace(0, video_total_frames - 1, TOTAL_FRAMES_TO_ANALYZE).astype(int)
 
     frames = []
     frame_probs = []
-    frame_count = 0
 
-    while True:
+    for pos in sample_positions:
+        cap.set(cv2.CAP_PROP_POS_FRAMES, pos)
         ret, frame = cap.read()
-        if not ret or frame_count >= MAX_FRAMES:
-            break
+        if not ret:
+            continue
 
-        frame_count += 1
         frames.append(frame)
 
-        # face crop
+        # Face crop (if face available)
         faces = face_recognition.face_locations(frame)
         try:
             top, right, bottom, left = faces[0]
@@ -235,39 +237,52 @@ def detectFakeVideo(videoPath):
         except:
             face_crop = frame
 
-        # preprocess
-        img = train_transforms(face_crop).unsqueeze(0).unsqueeze(0)
+        # preprocessing
+        img = train_transforms(face_crop).unsqueeze(0).unsqueeze(0).to(device)
 
         # forward pass
         fmap, logits = model(img)
         prob_fake = sm(logits)[0][0].item()
         frame_probs.append(prob_fake)
 
-    # fakest frame
-    max_idx = int(np.argmax(frame_probs))
-    fakest_frame = frames[max_idx]
+    cap.release()
 
-    # ----------------------------------------
-    # Draw facial landmarks (instead of heatmap)
-    # ----------------------------------------
-    landmarks = face_recognition.face_landmarks(fakest_frame)
+    # ------------------------------------------------------
+    # SELECT TOP 10 FAKE FRAMES
+    # ------------------------------------------------------
+    top_k = 10
 
-    if len(landmarks) > 0:
-        for key, points in landmarks[0].items():
-            for p in points:
-                cv2.circle(fakest_frame, p, 2, (0, 0, 255), -1)  # small red dots
+    # Sort indices by highest fake probability
+    indices_sorted = np.argsort(frame_probs)[::-1]
+    chosen_indices = indices_sorted[:top_k]
 
-    # encode the frame
-    _, buffer = cv2.imencode(".jpg", fakest_frame)
-    frame_base64 = base64.b64encode(buffer).decode()
+    encoded_frames = []
 
+    for idx in chosen_indices:
+        frame = frames[idx].copy()
+
+        # Draw facial landmarks
+        faces = face_recognition.face_locations(frame)
+        for (top, right, bottom, left) in faces:
+          cv2.rectangle(frame, (left, top), (right, bottom), (0, 0, 255), 2)
+
+        # Encode frame to base64
+        _, buffer = cv2.imencode(".jpg", frame)
+        frame_b64 = base64.b64encode(buffer).decode()
+
+        encoded_frames.append({
+            "frame_index": int(sample_positions[idx]),
+            "image": frame_b64
+        })
+
+    # ------------------------------------------------------
+    # RETURN FINAL RESULT
+    # ------------------------------------------------------
     return {
         'prediction': prediction[0],
         'confidence': prediction[1],
-        'highlighted_frame': frame_base64,
-        'frame_index': max_idx
+        'highlighted_frames': encoded_frames
     }
-
 
 # API endpoint for react frontend
 @app.route('/api/detect', methods=['POST'])
@@ -294,8 +309,7 @@ def api_detect():
         return jsonify({
             'output': output,
             'confidence': confidence,
-            'highlighted_frame': result['highlighted_frame'],       # NEW
-            'frame_index': result['frame_index'],  # NEW
+            'highlighted_frames': result['highlighted_frames'],       # NEW
             'success': True
         })
         
