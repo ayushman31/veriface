@@ -191,9 +191,9 @@ def detectFakeVideo(videoPath):
 
     # Dataset
     video_dataset = validation_dataset([videoPath], sequence_length=20, transform=train_transforms)
-
+    device = "cuda" if torch.cuda.is_available() else "cpu"
     model = Model(2)
-    model.load_state_dict(torch.load('model/best_model.pth', map_location='cpu'))
+    model.load_state_dict(torch.load('model/best_model.pth', map_location=device))
     model.eval()
 
     # original prediction
