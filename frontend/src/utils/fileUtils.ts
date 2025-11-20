@@ -1,7 +1,20 @@
 export const validateVideoFile = (file: File) => {
-    const validTypes = ['video/mp4', 'video/avi', 'video/mov', 'video/wmv'];
-    return validTypes.includes(file.type);
-  };
+  const allowedExt = ['mp4', 'mov', 'avi', 'wmv'];
+
+  const nameExt = file.name.split('.').pop()?.toLowerCase() || "";
+  const mime = file.type?.toLowerCase() || "";
+
+  // Case 1: Normal browser-uploaded videos
+  if (mime.startsWith("video/")) return true;
+
+  // Case 2: Dataset files with missing or wrong MIME type
+  if (allowedExt.includes(nameExt)) return true;
+
+  // Case 3: Some systems mark MP4 as "application/octet-stream"
+  if (mime === "application/octet-stream" && nameExt === "mp4") return true;
+
+  return false;
+};
   
   export const formatFileSize = (bytes: number) => {
     if (bytes === 0) return '0 Bytes';

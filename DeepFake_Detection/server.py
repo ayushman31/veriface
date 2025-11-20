@@ -271,9 +271,11 @@ def detectFakeVideo(videoPath):
         frame_b64 = base64.b64encode(buffer).decode()
 
         encoded_frames.append({
-            "frame_index": int(sample_positions[idx]),
-            "image": frame_b64
+          "frame_index": int(sample_positions[idx]),
+          "image": frame_b64,
+          "probability": float(frame_probs[idx] * 100)
         })
+
 
     # ------------------------------------------------------
     # RETURN FINAL RESULT

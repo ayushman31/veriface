@@ -14,30 +14,28 @@ export const useFileUpload = (): UseFileUploadReturn => {
       return;
     }
 
-    if (validateVideoFile(file)) {
-      setSelectedFile(file);
-      setError(null);
-    } else {
+    if (!validateVideoFile(file)) {
       setError(UI_MESSAGES.INVALID_FILE_ERROR);
       setSelectedFile(null);
+      return;
     }
+
+    setSelectedFile(file);
+    setError(null);
+
   };
 
   const handleDrag = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
-    if (e.type === "dragenter" || e.type === "dragover") {
-      setDragActive(true);
-    } else if (e.type === "dragleave") {
-      setDragActive(false);
-    }
+    if (e.type === 'dragenter' || e.type === 'dragover') setDragActive(true);
+    else if (e.type === 'dragleave') setDragActive(false);
   };
 
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-    
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       handleFileChange(e.dataTransfer.files[0]);
     }
@@ -48,9 +46,7 @@ export const useFileUpload = (): UseFileUploadReturn => {
     setError(null);
   };
 
-  const clearError = () => {
-    setError(null);
-  };
+  const clearError = () => setError(null);
 
   return {
     selectedFile,

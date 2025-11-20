@@ -1,10 +1,8 @@
 import React from 'react';
-import { Upload, Video, X } from 'lucide-react';
+import { Upload, X } from 'lucide-react';
 import { Card, CardContent } from '../../ui/card';
 import { Button } from '../../ui/Button';
-import { formatFileSize } from '../../../utils/fileUtils';
-import { UI_MESSAGES } from '../../../utils/constants';
-import type { FileUploadAreaProps } from '../../../types';
+import type { FileUploadAreaProps, UploadBoxProps, VideoPreviewProps } from '../../../types';
 
 const FileUploadArea: React.FC<FileUploadAreaProps> = ({ 
   selectedFile, 
@@ -12,94 +10,130 @@ const FileUploadArea: React.FC<FileUploadAreaProps> = ({
   onFileChange, 
   onDrag, 
   onDrop, 
-  onClearFile 
+  onClearFile,
 }) => {
   const handleClick = () => {
     document.getElementById('video-input')?.click();
   };
 
   return (
-    <Card className="w-full">
+    <Card className="w-full border border-gray-700 rounded-2xl shadow-sm px-4 py-6 bg-gray-800">
       <CardContent className="p-0">
-        <div
-          className={`
-            border-2 border-dashed transition-all duration-200 cursor-pointer rounded-lg p-8 md:p-12
-            ${dragActive 
-              ? 'border-primary bg-accent' 
-              : 'border-muted-foreground/25 hover:border-primary/50 hover:bg-accent/50'
-            }
-          `}
-          onDragEnter={onDrag}
-          onDragLeave={onDrag}
-          onDragOver={onDrag}
-          onDrop={onDrop}
-          onClick={handleClick}
-        >
-          <input
-            type="file"
-            id="video-input"
-            accept="video/*"
-            onChange={(e) => onFileChange(e.target.files?.[0] || null)}
-            className="hidden"
+        {selectedFile ? (
+          <VideoPreview file={selectedFile} onClearFile={onClearFile} />
+        ) : (
+          <UploadBox
+            dragActive={dragActive}
+            onDrop={onDrop}
+            onDrag={onDrag}
+            onClick={handleClick}
+            onFileChange={onFileChange}
           />
-          
-          <div className="text-center space-y-4">
-            {selectedFile ? (
-              <FileSelected 
-                file={selectedFile} 
-                onClear={onClearFile} 
-              />
-            ) : (
-              <FilePrompt />
-            )}
-          </div>
-        </div>
+        )}
       </CardContent>
     </Card>
   );
 };
 
-const FileSelected: React.FC<{ file: File; onClear: () => void }> = ({ file, onClear }) => (
-  <div className="space-y-4">
-    <div className="flex justify-center">
-      <div className="p-4 bg-primary/10 rounded-full">
-        <Video className="h-8 w-8 md:h-12 md:w-12" />
+export default FileUploadArea;
+
+// ------------------------------
+// UPLOAD BOX
+// ------------------------------
+const UploadBox: React.FC<UploadBoxProps> = ({
+  dragActive,
+  onDrop,
+  onDrag,
+  onClick,
+  onFileChange
+}) => (
+  <div
+    className={`
+      rounded-2xl p-8 md:p-12 cursor-pointer
+      border-2 border-dashed ${dragActive ? 'border-teal-400 bg-gray-700' : 'border-gray-600 hover:bg-gray-700'}
+      transition-all duration-200
+    `}
+    onDragEnter={onDrag}
+    onDragLeave={onDrag}
+    onDragOver={onDrag}
+    onDrop={onDrop}
+    onClick={onClick}
+  >
+    <input
+      type="file"
+      id="video-input"
+      accept="video/*"
+      onChange={(e) => onFileChange(e.target.files?.[0] || null)}
+      className="hidden"
+    />
+    <FilePrompt />
+  </div>
+);
+
+// ------------------------------
+// VIDEO PREVIEW
+// ------------------------------
+const VideoPreview: React.FC<VideoPreviewProps> = ({
+  file,
+  onClearFile
+}) => {
+  const videoURL = React.useMemo(() => URL.createObjectURL(file), [file]);
+
+  return (
+    <div className="rounded-2xl border border-gray-700 p-6 relative bg-gray-800">
+      <h2 className="text-xl font-semibold text-gray-100 mb-4">Video Preview</h2>
+      <div className="flex justify-center">
+        <video
+          src={videoURL}
+          controls
+          className="w-[600px] h-[260px] object-cover rounded-2xl shadow-md bg-gray-900"
+          onError={() => alert('This video format is not supported by your browser.')}
+        >
+          <source src={videoURL} type={file.type || "video/mp4"} />
+          Your browser does not support preview for this video codec.
+        </video>
+      </div>
+      <div className="flex justify-between items-center mt-4">
+        <p className="text-sm text-gray-400">{file.name}</p>
+        <Button
+          variant="outline"
+          size="sm"
+          className="text-xs border-gray-600 hover:border-teal-400 hover:bg-gray-700"
+          onClick={onClearFile}
+        >
+          <X className="h-3 w-3 mr-1" />
+          Remove
+        </Button>
       </div>
     </div>
-    <div className="space-y-2">
-      <p className="text-sm font-medium text-primary">{UI_MESSAGES.FILE_SELECTED}</p>
-      <p className="font-medium text-sm md:text-base break-all">{file.name}</p>
-      <p className="text-xs md:text-sm text-muted-foreground">{formatFileSize(file.size)}</p>
+  );
+};
+
+// ------------------------------
+// UPLOAD PROMPT
+// ------------------------------
+const FilePrompt: React.FC = () => (
+  <div className="text-center space-y-4">
+    <div className="flex justify-center">
+      <div className="p-4 rounded-full bg-gray-700">
+        <Upload className="h-10 w-10 text-teal-400" />
+      </div>
     </div>
+    <p className="text-lg font-medium text-gray-100">
+      Drag and drop your video file here
+    </p>
+    <p className="text-sm text-gray-400">or</p>
     <Button
-      variant="outline"
-      size="sm"
+      className="bg-teal-600 hover:bg-teal-500 text-white px-6 py-2 rounded-full text-sm font-semibold"
       onClick={(e) => {
         e.stopPropagation();
-        onClear();
+        document.getElementById('video-input')?.click();
       }}
-      className="text-xs"
     >
-      <X className="h-3 w-3 mr-1" />
-      {UI_MESSAGES.REMOVE_FILE}
+      Browse Files
     </Button>
+    <p className="text-sm text-gray-400 pt-2">
+      Supported formats: MP4, MOV, AVI. Max file size: 500MB
+    </p>
   </div>
 );
-
-const FilePrompt: React.FC = () => (
-  <div className="space-y-4">
-    <div className="flex justify-center">
-      <div className="p-4 bg-muted rounded-full">
-        <Upload className="h-8 w-8 md:h-12 md:w-12 text-muted-foreground" />
-      </div>
-    </div>
-    <div className="space-y-2">
-      <p className="text-sm md:text-base font-medium">{UI_MESSAGES.UPLOAD_PROMPT}</p>
-      <p className="text-xs md:text-sm text-muted-foreground">
-        {UI_MESSAGES.SUPPORTED_FORMATS}
-      </p>
-    </div>
-  </div>
-);
-
-export default FileUploadArea;

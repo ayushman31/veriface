@@ -2,6 +2,7 @@
 export interface HighlightedFrame {
   frame_index: number;
   image: string;
+  probability:number;
 }
 
 export interface DetectionResult {
@@ -24,6 +25,19 @@ export interface FileUploadAreaProps {
   onFileChange: (file: File | null) => void;
   onDrag: (e: React.DragEvent<HTMLDivElement>) => void;
   onDrop: (e: React.DragEvent<HTMLDivElement>) => void;
+  onClearFile: () => void;
+}
+
+export interface UploadBoxProps {
+  dragActive: boolean;
+  onDrop: (e: React.DragEvent<HTMLDivElement>) => void;
+  onDrag: (e: React.DragEvent<HTMLDivElement>) => void;
+  onClick: () => void;
+  onFileChange: (file: File | null) => void;
+}
+
+export interface VideoPreviewProps {
+  file: File;
   onClearFile: () => void;
 }
 

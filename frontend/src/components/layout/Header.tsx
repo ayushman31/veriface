@@ -1,15 +1,14 @@
-import React from 'react';
+import React from "react";
+import { Shield } from "lucide-react";
 
 const Header: React.FC = () => {
   return (
-    <header className="text-center py-12 md:py-16">
-      <div className="animate-fade-in space-y-4">
-        <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight">
-          VeriFace
+    <header className="w-full bg-gray-800 border-b border-gray-700 py-4 px-6 mb-6">
+      <div className="flex items-center space-x-2">
+        <Shield className="w-7 h-7 text-teal-400" />
+        <h1 className="text-3xl font-bold tracking-tight text-gray-100">
+          Veriface
         </h1>
-        <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-        Detection of Deepfake Videos using Deep Learning
-        </p>
       </div>
     </header>
   );

@@ -1,4 +1,5 @@
 import Layout from './components/layout/Layout';
+import IntroCard from './components/layout/IntroCard';
 import UploadForm from './components/features/upload/UploadForm';
 import ResultCard from './components/features/results/ResultCard';
 import ErrorMessage from './components/ui/ErrorMessage';
@@ -38,6 +39,8 @@ function App() {
   return (
     <Layout>
       <div className="space-y-6 md:space-y-8">
+        {/*Intro Card*/}
+        <IntroCard />
         {/* Upload Form */}
         <UploadForm
           selectedFile={selectedFile}
