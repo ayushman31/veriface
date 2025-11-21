@@ -8,8 +8,16 @@ export interface HighlightedFrame {
 export interface DetectionResult {
   output: 'REAL' | 'FAKE';
   confidence: number;
-  highlighted_frames: HighlightedFrame[];  // <-- array!
+  analysis_id: string | null;
+  has_suspicious_frames: boolean;
+  highlighted_frames?: HighlightedFrame[];  // Optional for backward compatibility
   success: boolean;
+}
+
+export interface SuspiciousFramesResult {
+  status: 'processing' | 'completed';
+  frames?: HighlightedFrame[];
+  message?: string;
 }
 
 export interface ApiResponse<T> {
@@ -54,6 +62,10 @@ export interface UploadFormProps {
 
 export interface ResultCardProps {
   result: DetectionResult;
+  suspiciousFrames: HighlightedFrame[];
+  loadingFrames: boolean;
+  framesError: string | null;
+  onFetchSuspiciousFrames: (analysisId: string) => void;
 }
 
 export interface ErrorMessageProps {
@@ -81,7 +93,11 @@ export interface UseDetectionReturn {
   loading: boolean;
   result: DetectionResult | null;
   error: string | null;
+  suspiciousFrames: HighlightedFrame[];
+  loadingFrames: boolean;
+  framesError: string | null;
   analyzeVideo: (videoFile: File | null) => Promise<void>;
+  fetchSuspiciousFrames: (analysisId: string) => Promise<void>;
   clearResults: () => void;
 }
 

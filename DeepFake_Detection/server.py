@@ -51,6 +51,10 @@ app = Flask("__main__", template_folder="templates")
 CORS(app)  
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
+# Ensure upload folder exists
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER)
+
 # Creating Model Architecture
 
 class Model(nn.Module):
@@ -175,6 +179,174 @@ class validation_dataset(Dataset):
         yield image
 
 import base64
+import uuid
+import threading
+from collections import defaultdict
+
+# Store for video analysis results
+video_analysis_store = defaultdict(dict)
+
+def detectFakeVideoQuick(videoPath):
+    """Quick detection - returns only real/fake prediction"""
+    # transform
+    im_size = 112
+    mean = [0.485, 0.456, 0.406]
+    std = [0.229, 0.224, 0.225]
+
+    train_transforms = transforms.Compose([
+        transforms.ToPILImage(),
+        transforms.Resize((im_size, im_size)),
+        transforms.ToTensor(),
+        transforms.Normalize(mean, std)
+    ])
+
+    # Dataset
+    video_dataset = validation_dataset([videoPath], sequence_length=20, transform=train_transforms)
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    model = Model(2).to(device)
+    model.load_state_dict(torch.load('model/df_model.pt', map_location=device))
+    model.eval()
+
+    # original prediction
+    prediction = predict(model, video_dataset[0])
+    is_fake = prediction[0] == 0  # 0 = fake
+
+    return {
+        'prediction': prediction[0],
+        'confidence': prediction[1],
+        'is_fake': is_fake
+    }
+
+def generateSuspiciousFrames(videoPath, analysis_id):
+    """Generate suspicious frames in background and store in analysis_store"""
+    print(f"Starting suspicious frames generation for analysis_id: {analysis_id}")
+    print(f"Video path: {videoPath}")
+    try:
+        # Mark as processing
+        video_analysis_store[analysis_id]['status'] = 'processing'
+        print(f"Marked analysis {analysis_id} as processing")
+        
+        # Check if video file exists
+        if not os.path.exists(videoPath):
+            raise Exception(f"Video file not found: {videoPath}")
+        
+        # transform
+        im_size = 112
+        mean = [0.485, 0.456, 0.406]
+        std = [0.229, 0.224, 0.225]
+
+        train_transforms = transforms.Compose([
+            transforms.ToPILImage(),
+            transforms.Resize((im_size, im_size)),
+            transforms.ToTensor(),
+            transforms.Normalize(mean, std)
+        ])
+
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        model = Model(2).to(device)
+        model.load_state_dict(torch.load('model/df_model.pt', map_location=device))
+        model.eval()
+        
+        # SAMPLE 30 FRAMES EVENLY ACROSS VIDEO
+        TOTAL_FRAMES_TO_ANALYZE = 30
+        cap = cv2.VideoCapture(videoPath)
+        
+        if not cap.isOpened():
+            raise Exception(f"Could not open video file: {videoPath}")
+            
+        video_total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        print(f"Video has {video_total_frames} total frames")
+
+        if video_total_frames == 0:
+            raise Exception("Video has no frames")
+
+        # Evenly spaced frame indices
+        sample_positions = np.linspace(0, video_total_frames - 1, TOTAL_FRAMES_TO_ANALYZE).astype(int)
+
+        frames = []
+        frame_probs = []
+
+        for pos in sample_positions:
+            cap.set(cv2.CAP_PROP_POS_FRAMES, pos)
+            ret, frame = cap.read()
+            if not ret:
+                continue
+
+            frames.append(frame)
+
+            # Face crop (if face available)
+            faces = face_recognition.face_locations(frame)
+            try:
+                top, right, bottom, left = faces[0]
+                face_crop = frame[top:bottom, left:right]
+            except:
+                face_crop = frame
+
+            # preprocessing
+            img = train_transforms(face_crop).unsqueeze(0).unsqueeze(0).to(device)
+
+            # forward pass
+            fmap, logits = model(img)
+            prob_fake = sm(logits)[0][0].item()
+            frame_probs.append(prob_fake)
+
+        cap.release()
+
+        # SELECT TOP 10 FAKE FRAMES
+        top_k = 10
+
+        # Sort indices by highest fake probability
+        indices_sorted = np.argsort(frame_probs)[::-1]
+        chosen_indices = indices_sorted[:top_k]
+
+        encoded_frames = []
+
+        for idx in chosen_indices:
+            frame = frames[idx].copy()
+
+            # Draw facial landmarks
+            faces = face_recognition.face_locations(frame)
+            for (top, right, bottom, left) in faces:
+                cv2.rectangle(frame, (left, top), (right, bottom), (0, 0, 255), 2)
+
+            # Encode frame to base64
+            _, buffer = cv2.imencode(".jpg", frame)
+            frame_b64 = base64.b64encode(buffer).decode()
+
+            encoded_frames.append({
+                "frame_index": int(sample_positions[idx]),
+                "image": frame_b64,
+                "probability": float(frame_probs[idx] * 100)
+            })
+
+        print(f"Generated {len(encoded_frames)} suspicious frames")
+
+        # Store the result
+        video_analysis_store[analysis_id]['status'] = 'completed'
+        video_analysis_store[analysis_id]['frames'] = encoded_frames
+        print(f"Analysis {analysis_id} completed with {len(encoded_frames)} frames")
+        
+        # Clean up video file after processing
+        try:
+            if os.path.exists(videoPath):
+                os.remove(videoPath)
+                print(f"Cleaned up video file: {videoPath}")
+        except Exception as cleanup_error:
+            print(f"Could not clean up video file: {cleanup_error}")
+        
+    except Exception as e:
+        print(f"Error in generateSuspiciousFrames for {analysis_id}: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        video_analysis_store[analysis_id]['status'] = 'error'
+        video_analysis_store[analysis_id]['error'] = str(e)
+        
+        # Clean up video file even on error
+        try:
+            if os.path.exists(videoPath):
+                os.remove(videoPath)
+        except:
+            pass  # Ignore cleanup errors
 
 def detectFakeVideo(videoPath):
     # transform
@@ -193,7 +365,7 @@ def detectFakeVideo(videoPath):
     video_dataset = validation_dataset([videoPath], sequence_length=20, transform=train_transforms)
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model = Model(2).to(device)
-    model.load_state_dict(torch.load('model/best_model.pth', map_location=device))
+    model.load_state_dict(torch.load('model/df_model.pt', map_location=device))
     model.eval()
 
     # original prediction
@@ -286,7 +458,7 @@ def detectFakeVideo(videoPath):
         'highlighted_frames': encoded_frames
     }
 
-# API endpoint for react frontend
+# API endpoint for quick detection (real/fake only)
 @app.route('/api/detect', methods=['POST'])
 def api_detect():
     try:
@@ -301,22 +473,102 @@ def api_detect():
         video.save(os.path.join(app.config['UPLOAD_FOLDER'], video_filename))
         video_path = "Uploaded_Files/" + video_filename
         
-        result = detectFakeVideo(video_path)
-
+        # Quick detection
+        result = detectFakeVideoQuick(video_path)
         output = "REAL" if result['prediction'] == 1 else "FAKE"
         confidence = result['confidence']
-
-        os.remove(video_path)
-
-        return jsonify({
-            'output': output,
-            'confidence': confidence,
-            'highlighted_frames': result['highlighted_frames'],       # NEW
-            'success': True
-        })
+        
+        # Generate unique analysis ID for this video
+        analysis_id = str(uuid.uuid4())
+        
+        # If video is fake, start background processing for suspicious frames
+        if result['is_fake']:
+            # Initialize the analysis entry
+            video_analysis_store[analysis_id] = {'status': 'initializing'}
+            
+            # Start background thread to generate suspicious frames
+            thread = threading.Thread(target=generateSuspiciousFrames, args=(video_path, analysis_id))
+            thread.daemon = True
+            thread.start()
+            
+            print(f"Started background thread for analysis {analysis_id}")
+            
+            # Don't remove video file yet - needed for frame analysis
+            return jsonify({
+                'output': output,
+                'confidence': confidence,
+                'analysis_id': analysis_id,  # Return ID for fetching frames later
+                'has_suspicious_frames': True,
+                'success': True
+            })
+        else:
+            # Remove video file immediately for real videos
+            os.remove(video_path)
+            return jsonify({
+                'output': output,
+                'confidence': confidence,
+                'analysis_id': None,
+                'has_suspicious_frames': False,
+                'success': True
+            })
         
     except Exception as e:
         return jsonify({'error': str(e), 'success': False}), 500
+
+# API endpoint to fetch suspicious frames
+@app.route('/api/suspicious-frames/<analysis_id>', methods=['GET'])
+def api_get_suspicious_frames(analysis_id):
+    print(f"Fetching suspicious frames for analysis_id: {analysis_id}")
+    print(f"Current store keys: {list(video_analysis_store.keys())}")
+    try:
+        if analysis_id not in video_analysis_store:
+            print(f"Analysis ID {analysis_id} not found in store")
+            return jsonify({'error': 'Analysis ID not found'}), 404
+        
+        analysis = video_analysis_store[analysis_id]
+        status = analysis.get('status', 'not_found')
+        print(f"Analysis {analysis_id} status: {status}")
+        
+        if status in ['processing', 'initializing']:
+            return jsonify({
+                'status': 'processing',
+                'message': 'Suspicious frames are still being generated...'
+            })
+        elif status == 'completed':
+            frames = analysis.get('frames', [])
+            # Clean up the analysis data after successful retrieval
+            del video_analysis_store[analysis_id]
+            return jsonify({
+                'status': 'completed',
+                'frames': frames
+            })
+        elif status == 'error':
+            error_msg = analysis.get('error', 'Unknown error occurred')
+            del video_analysis_store[analysis_id]
+            return jsonify({'error': error_msg}), 500
+        else:
+            return jsonify({'error': 'Invalid analysis status'}), 400
+            
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# Cleanup endpoint to remove video file after suspicious frames are fetched
+@app.route('/api/cleanup/<analysis_id>', methods=['DELETE'])
+def api_cleanup(analysis_id):
+    try:
+        # This endpoint can be called to clean up any remaining files
+        # In practice, files should be cleaned up automatically
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# Debug endpoint to check analysis store
+@app.route('/api/debug/store', methods=['GET'])
+def debug_store():
+    return jsonify({
+        'store_keys': list(video_analysis_store.keys()),
+        'store_data': dict(video_analysis_store)
+    })
 
 
 app.run(port=3000, debug=True);

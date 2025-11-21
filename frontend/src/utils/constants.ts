@@ -2,6 +2,7 @@ export const SUPPORTED_VIDEO_FORMATS = ['MP4', 'AVI', 'MOV', 'WMV'];
 
 export const API_ENDPOINTS = {
   DETECT: '/api/detect',
+  SUSPICIOUS_FRAMES: '/api/suspicious-frames',
 };
 
 export const DETECTION_STATUS = {

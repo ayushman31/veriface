@@ -23,7 +23,11 @@ function App() {
     loading,
     result,
     error: detectionError,
+    suspiciousFrames,
+    loadingFrames,
+    framesError,
     analyzeVideo,
+    fetchSuspiciousFrames,
     clearResults,
   } = useDetection();
 
@@ -71,7 +75,13 @@ function App() {
         {/* Results */}
         {result && (
           <div className="space-y-6">
-            <ResultCard result={result} />
+            <ResultCard 
+              result={result}
+              suspiciousFrames={suspiciousFrames}
+              loadingFrames={loadingFrames}
+              framesError={framesError}
+              onFetchSuspiciousFrames={fetchSuspiciousFrames}
+            />
             <div className="flex justify-center">
               <Button
                 variant="outline"
