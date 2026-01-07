@@ -1,60 +1,127 @@
-# DeepFake Detection - Simplified!
-DeepFake Detection Web-App 🖥 using Deep Learning(ResNext and LSTM), Flask and ReactJs where you can predict whether a video is FAKE Or REAL along with the confidence ratio. 
+# DeepFake Detection Web Application
 
-## Explanation of the Project
-- We've created a DeepFake Detection system which intends to detect DeepFake videos using Deep Learning techniques like ResNext and LSTM. Also integrated the  trained model with the Frontend UI which uses ReactJs and Backend uses Flask.
+A DeepFake detection web application built using Deep Learning (ResNeXt + LSTM), Flask, and ReactJS.
+The system predicts whether an uploaded video is REAL or FAKE, provides a confidence score,
+and includes frame-level analysis for better interpretability.
 
-- The Dataset we've used to train our model is [here](https://github.com/yuezunli/celeb-deepfakeforensics).
+----------------------------------------------------------------
 
-- To find our trained model follow this [link](https://drive.google.com/drive/folders/1-zErGZ9T89TplQs3ws4QVRFlqE-ljW6l?usp=sharing).
+PROJECT OVERVIEW
 
-- To train our model we've took help from [here](https://github.com/abhijitjadhav1998/Deepfake_detection_using_deep_learning/tree/master/Model%20Creation).
-  Thanks to them!
+This project detects DeepFake videos by learning both spatial and temporal patterns from video data.
 
-- To understand the project in a better way it is structured in below format:
-```
-DeepFake-Detection
-    |
-    |--- DeepFake_Detection
-    |--- Implementation Video
-    |--- Project-Setup.txt
-    |--- Requiremnts.txt
-```
-1. DeepFake_Detection - This is the root folder.
+- ResNeXt is used to extract spatial features from individual frames
+- LSTM models temporal dependencies across consecutive frames
+- Face detection is performed using the face_recognition library
+- Flask is used to build the backend API
+- A fully redesigned ReactJS frontend enables interactive video upload and result visualization
 
-2. Implementation Video - It shows the whole working of the project. 
+----------------------------------------------------------------
 
-3. Project-Setup.txt - In this file we've written all the necessary steps to run this project.
+TECH STACK
 
-4. Requirements.txt - Python libraries needed for this project. 
+Backend:
+- Python
+- Flask
+- PyTorch
+- OpenCV
+- face_recognition
 
-## Project Set-up Guidelines
-To set up the project. All the steps and guidelines regarding that are listed [here](https://github.com/iamdhrutipatel/DeepFake-Detection/blob/main/Project-Setup.txt).
+Frontend:
+- ReactJS
+- HTML
+- CSS
+- JavaScript
 
-## Note
-1. In the root folder(DeepFake_Detection), create a new folder called "Uploaded_Files".
+Deep Learning:
+- ResNeXt (CNN)
+- LSTM (Temporal modeling)
 
-2. In the root folder(DeepFake_Detection), create a new folder called "model" and add the [model file](https://drive.google.com/drive/folders/1-zErGZ9T89TplQs3ws4QVRFlqE-ljW6l?usp=sharing) in it.
+Dataset:
+- Celeb-DF (DeepFake Forensics)
+- https://github.com/yuezunli/celeb-deepfakeforensics
 
-<b>Add these folders to the root folder(DeepFake_Detection). Since, the path has already been given to the "server.py" file and also to avoid any path related errors.</b>
+----------------------------------------------------------------
 
-## Our Results
+KEY FEATURES
 
-1) Accuracy of the Model:
-<img width="250" height="50" alt="Model Accuracy" src="https://user-images.githubusercontent.com/58872872/133935912-1def7615-6538-4c88-9134-8f94a9367965.png">
+- Video upload for DeepFake detection
+- Deep learning based REAL / FAKE classification
+- Confidence score for predictions
+- Frame-level analysis for improved transparency
+- Face detection using face_recognition
+- Completely redesigned React frontend
 
-2) Training and Validation Accuracy Graph:
-<img width="378" alt="Accuracy Graph" src="https://user-images.githubusercontent.com/58872872/133936040-4bfa44a7-45c5-499b-8a10-f253cbcab56c.png">
+----------------------------------------------------------------
 
-3) Training and Validation Loss Graph:
-<img width="381" alt="Loss Graph" src="https://user-images.githubusercontent.com/58872872/133935983-b4d9275f-e841-4b69-86cd-79c770ea2aa1.png">
+SETUP INSTRUCTIONS
 
-4) Confusion Matrix:
-<img width="402" alt="Confusion Matrix" src="https://user-images.githubusercontent.com/58872872/133936080-d2b39804-4a99-47b8-8be4-87ba77161961.png">
+1. Clone the repository
+git clone <your-repository-url>
+cd DeepFake_Detection
 
-- To see the working of the project, follow this [link](https://github.com/iamdhrutipatel/DeepFake-Detection/blob/main/Implementation%20Video.mp4).
+2. Create required folders
+Inside the DeepFake_Detection directory:
+- Uploaded_Files/
+- model/ (place trained model files here)
 
-## Developers
-1. [Juhie Motiani](https://github.com/JuhieMotiani)
-2. [Dhruti Patel](https://github.com/iamdhrutipatel)
-3. [Anjali Patel](https://github.com/anjali-patel21)
+These paths are already configured in server.py.
+
+3. Install backend dependencies
+pip install -r requirements.txt
+
+4. Run the Flask server
+python server.py
+
+5. Run the frontend
+cd frontend
+npm install
+npm start
+
+----------------------------------------------------------------
+
+MODEL PERFORMANCE
+
+- Accuracy: (add your achieved accuracy): 98.7%
+- Confusion Matrix
+  <img width="531" height="356" alt="image" src="https://github.com/user-attachments/assets/da1e3f47-8550-4ef5-a477-04cb90f55679" />
+
+
+----------------------------------------------------------------
+
+DATASET DETAILS
+
+The model is trained using the Celeb-DF dataset which contains real and DeepFake videos
+generated using multiple DeepFake techniques.
+
+Dataset link:
+https://github.com/yuezunli/celeb-deepfakeforensics
+
+----------------------------------------------------------------
+
+ACKNOWLEDGEMENTS AND CREDITS
+
+This project is inspired by and built with reference to existing open-source work.
+We sincerely thank the original authors for making their implementations publicly available.
+
+References:
+
+Deepfake Detection using Deep Learning:
+https://github.com/abhijitjadhav1998/Deepfake_detection_using_deep_learning
+
+Original Project Inspiration:
+https://github.com/iamdhrutipatel/DeepFake-Detection
+
+This repository includes:
+- A completely redesigned frontend
+- Modified backend and API integration
+- Frame-level prediction and analysis features
+- Custom project structure and deployment setup
+
+
+----------------------------------------------------------------
+
+DISCLAIMER
+
+This project is intended strictly for educational and research purposes.
+DeepFake detection remains an open research challenge and real-world performance may vary.
