@@ -4,7 +4,7 @@ A DeepFake detection web application built using Deep Learning (ResNeXt + LSTM),
 The system predicts whether an uploaded video is REAL or FAKE, provides a confidence score,
 and includes frame-level analysis for better interpretability.
 
-----------------------------------------------------------------
+---------------------------------------------------------------
 
 PROJECT OVERVIEW
 
